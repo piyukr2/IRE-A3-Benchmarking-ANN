@@ -1,4 +1,4 @@
-"""Code to perform benchmarking. Vary a search-parameter through a set of possible values and note down the observed recall and speed.."""
+"""Code to perform benchmarking. Vary a search-parameter through a set of possible values and note down the observed recall and speed."""
 import numpy as np
 
 import config
