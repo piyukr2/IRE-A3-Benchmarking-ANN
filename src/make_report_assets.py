@@ -19,11 +19,14 @@ LABEL = {"hnsw": "HNSW", "ivfflat": "IVF-Flat", "ivfpq": "IVF-PQ", "ivfpq+refine
 TARGETS = [0.90, 0.95]
 
 df = results.load()
+for col in ("m", "copies"):
+    if col in df:
+        df[col] = df[col].astype("Int64")
 
 
 def save_table(df_, name):
     df_.to_csv(TABLE_DIR / f"{name}.csv", index=False)
-    (TABLE_DIR / f"{name}.md").write_text(df_.to_markdown(index=False, floatfmt=".3g")
+    (TABLE_DIR / f"{name}.md").write_text(df_.to_markdown(index=False, floatfmt=".4g")
                                           if hasattr(df_, "to_markdown") else df_.to_string(index=False))
     print(f"\n{name}\n{df_.to_string(index=False)}")
 
@@ -96,9 +99,10 @@ if len(p2):
                     r = pick(g, t_)
                     if r is not None and (best is None or r.qps > best.qps):
                         best = r
-                entry[f"qps@{t_:.2f}"] = round(best.qps) if best is not None else None
+                entry[f"qps@{t_:.2f}"] = (int(round(best.qps)) if best is not None
+                                          else f"not reached (max recall {g_idx.recall.max():.2f})")
                 entry[f"build@{t_:.2f}"] = best.build if best is not None else "not reached"
-                entry[f"recall@{t_:.2f}"] = round(best.recall, 3) if best is not None else None
+                entry[f"recall@{t_:.2f}"] = round(best.recall, 3) if best is not None else "-"
                 if t_ == 0.95:
                     reached = best
             qps_rows.append(entry)
@@ -114,11 +118,11 @@ if len(p2):
     save_table(pd.DataFrame(cost_rows), "part2_build_and_memory")
 
 # ---------------------------------------------------------------- Part 3
-p3 = df[df.part == "part3"]
+p3 = df[df.part == "part3"].copy()
 if len(p3):
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.3))
     ax = axes[0]
-    m_colour = dict(zip(sorted(p3.m.unique()), ["#0072B2", "#D55E00", "#009E73", "#CC79A7"]))
+    m_colour = dict(zip(sorted(p3.m.dropna().unique()), ["#0072B2", "#D55E00", "#009E73", "#CC79A7"]))
     for (m, idx), g in p3.groupby(["m", "index"]):
         ax.plot(g.recall, g.qps, color=m_colour[m], marker="o" if idx == "ivfpq" else "D",
                 ls="-" if idx == "ivfpq" else "--", ms=4, lw=1.4,
@@ -129,9 +133,9 @@ if len(p3):
     ax.legend(frameon=False, fontsize=7, ncol=2)
 
     ax = axes[1]
-    summary = p3.groupby(["m", "index"]).agg(max_recall=("recall", "max"),
+    summary = p3[p3.m.notna()].groupby(["m", "index"]).agg(max_recall=("recall", "max"),
                                              bytes_per_vec=("bytes_per_vec", "first")).reset_index()
-    ms = sorted(summary.m.unique())
+    ms = sorted(int(m) for m in summary.m.unique())
     x = np.arange(len(ms))
     for off, idx in ((-0.2, "ivfpq"), (0.2, "ivfpq+refine")):
         s = summary[summary["index"] == idx].set_index("m").loc[ms]
@@ -151,14 +155,14 @@ if len(p3):
         r = pick(g_idx, 0.90)
         rows.append({"m": m, "index": LABEL[idx], "bytes_per_vec": round(g_idx.bytes_per_vec.iloc[0]),
                      "max_recall": round(g_idx.recall.max(), 3),
-                     "qps@0.90": round(r.qps) if r is not None else None})
+                     "qps@0.90": int(round(r.qps)) if r is not None else "not reached"})
     save_table(pd.DataFrame(rows), "part3_summary")
 
 # ---------------------------------------------------------------- Part 4
 p4 = df[df.part == "part4"]
 if len(p4):
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.3), sharey=True)
-    copies = sorted(p4.copies.unique())
+    copies = sorted(int(c) for c in p4.copies.unique())
     colour = dict(zip(copies, ["#000000", "#0072B2", "#D55E00", "#009E73"]))
     marker = dict(zip(copies, ["o", "s", "^", "D"]))
     for ax, idx in zip(axes, ("hnsw", "ivfflat")):
@@ -180,6 +184,6 @@ if len(p4):
         rows.append({"index": LABEL[idx], "copies": c, "n_vectors": int(g_.n_train.iloc[0]),
                      "max_recall": round(g_.recall.max(), 3),
                      "param@0.95": int(r.search_param) if r is not None else "not reached",
-                     "qps@0.95": round(r.qps) if r is not None else None,
+                     "qps@0.95": int(round(r.qps)) if r is not None else "not reached",
                      "build_s": round(g_.build_s.iloc[0], 1)})
     save_table(pd.DataFrame(rows), "part4_summary")
