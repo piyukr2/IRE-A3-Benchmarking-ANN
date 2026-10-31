@@ -1,6 +1,4 @@
-# Hypotheses (written BEFORE running the experiments)
-
-> DRAFT - read, rewrite in your own words, and commit before running Parts 3 and 4.
+# Hypotheses
 
 ## Part 3: Compression (SIFT, 1M vectors)
 
@@ -21,5 +19,4 @@ Compared on HNSW (M = 16) and IVF-Flat (nlist = 256).
 **Hypothesis.**
 - HNSW will do worse as each vector gets more copies. Copies fill each point's few edges, so the search stays stuck among copies instead of reaching the right area. It will need a larger efSearch for the same recall.
 - IVF-Flat should stay almost unchanged. A vector and its copies fall in the same cell, so the same nprobe still finds them. It will only slow down in proportion to the larger index.
-- If instead HNSW is unaffected, the most probable reason is its neighbour-selection heuristic, which
-  avoids keeping edges to points that are closer to an existing neighbour than to the node.
+- If instead HNSW is unaffected, the most probable reason is its neighbour-selection heuristic, which avoids keeping edges to points that are closer to an existing neighbour than to the node.
